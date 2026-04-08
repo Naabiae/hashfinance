@@ -2,7 +2,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export { AggregatorV3Interface__factory } from "./AggregatorV3Interface__factory";
-export { IHSPPayment__factory } from "./IHSPPayment__factory";
 export { IKYCRegistry__factory } from "./IKYCRegistry__factory";
 export { IKycSBT__factory } from "./IKycSBT__factory";
 export { IPriceOracle__factory } from "./IPriceOracle__factory";

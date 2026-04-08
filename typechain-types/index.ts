@@ -30,8 +30,6 @@ export type { ReentrancyGuard } from "./@openzeppelin/contracts/utils/Reentrancy
 export { ReentrancyGuard__factory } from "./factories/@openzeppelin/contracts/utils/ReentrancyGuard__factory";
 export type { AggregatorV3Interface } from "./contracts/interfaces/AggregatorV3Interface";
 export { AggregatorV3Interface__factory } from "./factories/contracts/interfaces/AggregatorV3Interface__factory";
-export type { IHSPPayment } from "./contracts/interfaces/IHSPPayment";
-export { IHSPPayment__factory } from "./factories/contracts/interfaces/IHSPPayment__factory";
 export type { IKYCRegistry } from "./contracts/interfaces/IKYCRegistry";
 export { IKYCRegistry__factory } from "./factories/contracts/interfaces/IKYCRegistry__factory";
 export type { IKycSBT } from "./contracts/interfaces/IKycSBT";

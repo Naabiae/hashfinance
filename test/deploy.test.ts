@@ -50,7 +50,6 @@ describe("Module 1: Smart Contracts Deployment & Verification", function () {
 
         // 4. Deploy RWAPool
         const mockStable = ethers.Wallet.createRandom().address; // USDC Mock
-        const mockHSP = ethers.Wallet.createRandom().address;    // HSP Mock
         const feeRecipient = owner.address;
         
         const RWAPoolFactory = await ethers.getContractFactory("RWAPool");
@@ -59,7 +58,6 @@ describe("Module 1: Smart Contracts Deployment & Verification", function () {
             mockStable,
             await kycRegistry.getAddress(),
             await priceOracle.getAddress(),
-            mockHSP,
             feeRecipient
         );
         await pool.waitForDeployment();

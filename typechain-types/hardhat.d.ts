@@ -62,10 +62,6 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.AggregatorV3Interface__factory>;
     getContractFactory(
-      name: "IHSPPayment",
-      signerOrOptions?: ethers.Signer | FactoryOptions
-    ): Promise<Contracts.IHSPPayment__factory>;
-    getContractFactory(
       name: "IKYCRegistry",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IKYCRegistry__factory>;
@@ -175,11 +171,6 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.AggregatorV3Interface>;
     getContractAt(
-      name: "IHSPPayment",
-      address: string | ethers.Addressable,
-      signer?: ethers.Signer
-    ): Promise<Contracts.IHSPPayment>;
-    getContractAt(
       name: "IKYCRegistry",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -289,10 +280,6 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.AggregatorV3Interface>;
     deployContract(
-      name: "IHSPPayment",
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IHSPPayment>;
-    deployContract(
       name: "IKYCRegistry",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IKYCRegistry>;
@@ -401,11 +388,6 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.AggregatorV3Interface>;
-    deployContract(
-      name: "IHSPPayment",
-      args: any[],
-      signerOrOptions?: ethers.Signer | DeployContractOptions
-    ): Promise<Contracts.IHSPPayment>;
     deployContract(
       name: "IKYCRegistry",
       args: any[],

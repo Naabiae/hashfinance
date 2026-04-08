@@ -2,7 +2,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { AggregatorV3Interface } from "./AggregatorV3Interface";
-export type { IHSPPayment } from "./IHSPPayment";
 export type { IKYCRegistry } from "./IKYCRegistry";
 export type { IKycSBT } from "./IKycSBT";
 export type { IPriceOracle } from "./IPriceOracle";

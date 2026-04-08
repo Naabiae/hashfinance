@@ -50,6 +50,7 @@ contract PriceOracle is IPriceOracle, Ownable {
             timestamp = data.timestamp;
         }
 
+        require(timestamp <= block.timestamp, "Oracle: timestamp in future");
         require(block.timestamp - timestamp <= MAX_STALENESS, "Oracle: stale price");
         return (price, timestamp);
     }

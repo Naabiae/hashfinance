@@ -113,7 +113,7 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         (int256 price, ) = priceOracle.getPrice(state.rwaToken);
         require(price > 0, "Pool: invalid oracle price");
 
-        uint256 rwaValueInStable = (rwaAmount * uint256(price)) / 1e8;
+        uint256 rwaValueInStable = (rwaAmount * uint256(price)) / 1e10; // RWA (8 dec) * Price (8 dec) = 16 dec. 16 dec / 1e10 = 6 dec (USDC)
         uint256 shares = stableAmount + rwaValueInStable;
 
         lpShares[msg.sender] += shares;
@@ -155,7 +155,7 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         uint256 fee = (stableAmountIn * state.feeBps) / 10000;
         uint256 amountAfterFee = stableAmountIn - fee;
 
-        uint256 rwaOut = (amountAfterFee * 1e8) / uint256(price);
+        uint256 rwaOut = (amountAfterFee * 1e10) / uint256(price); // USDC (6 dec) * 1e10 = 16 dec. 16 dec / Price (8 dec) = 8 dec (RWA)
         rwaOut = (rwaOut * (10000 - state.spreadBps)) / 10000;
 
         require(rwaOut >= minRWAOut, "Pool: slippage exceeded");
@@ -177,7 +177,7 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         (int256 price, ) = priceOracle.getPrice(state.rwaToken);
         require(price > 0, "Pool: invalid oracle price");
 
-        uint256 stableOut = (rwaAmountIn * uint256(price)) / 1e8;
+        uint256 stableOut = (rwaAmountIn * uint256(price)) / 1e10;
         stableOut = (stableOut * (10000 - state.spreadBps)) / 10000;
 
         uint256 fee = (stableOut * state.feeBps) / 10000;
