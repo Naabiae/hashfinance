@@ -1,0 +1,59 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IRWAPoolState",
+  "sourceName": "contracts/TradeGuard.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "state",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "rwaToken",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "stableToken",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "rwaReserve",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "stableReserve",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "spreadBps",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "feeBps",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "accumulatedFees",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "paused",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
