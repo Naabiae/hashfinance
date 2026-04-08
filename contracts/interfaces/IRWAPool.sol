@@ -6,6 +6,8 @@ interface IRWAPool {
     function removeLiquidity(uint256 shares) external;
     function swapStableForRWA(uint256 stableAmountIn, uint256 minRWAOut) external;
     function swapRWAForStable(uint256 rwaAmountIn, uint256 minStableOut) external;
-    function distributeYield() external;
+    function mintFromGateway(address lp, uint256 stableAmount) external;
+    function claimYield() external returns (uint256 amount);
     function setTradeGuard(address tradeGuard) external;
+    function setGatewayKeeper(address _gatewayKeeper) external;
 }

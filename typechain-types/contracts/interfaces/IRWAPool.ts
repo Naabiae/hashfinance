@@ -25,8 +25,10 @@ export interface IRWAPoolInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "addLiquidity"
-      | "distributeYield"
+      | "claimYield"
+      | "mintFromGateway"
       | "removeLiquidity"
+      | "setGatewayKeeper"
       | "setTradeGuard"
       | "swapRWAForStable"
       | "swapStableForRWA"
@@ -37,12 +39,20 @@ export interface IRWAPoolInterface extends Interface {
     values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "distributeYield",
+    functionFragment: "claimYield",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "mintFromGateway",
+    values: [AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "removeLiquidity",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setGatewayKeeper",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "setTradeGuard",
@@ -61,12 +71,17 @@ export interface IRWAPoolInterface extends Interface {
     functionFragment: "addLiquidity",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "claimYield", data: BytesLike): Result;
   decodeFunctionResult(
-    functionFragment: "distributeYield",
+    functionFragment: "mintFromGateway",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
     functionFragment: "removeLiquidity",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "setGatewayKeeper",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -132,10 +147,22 @@ export interface IRWAPool extends BaseContract {
     "nonpayable"
   >;
 
-  distributeYield: TypedContractMethod<[], [void], "nonpayable">;
+  claimYield: TypedContractMethod<[], [bigint], "nonpayable">;
+
+  mintFromGateway: TypedContractMethod<
+    [lp: AddressLike, stableAmount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
 
   removeLiquidity: TypedContractMethod<
     [shares: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  setGatewayKeeper: TypedContractMethod<
+    [_gatewayKeeper: AddressLike],
     [void],
     "nonpayable"
   >;
@@ -170,11 +197,21 @@ export interface IRWAPool extends BaseContract {
     "nonpayable"
   >;
   getFunction(
-    nameOrSignature: "distributeYield"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+    nameOrSignature: "claimYield"
+  ): TypedContractMethod<[], [bigint], "nonpayable">;
+  getFunction(
+    nameOrSignature: "mintFromGateway"
+  ): TypedContractMethod<
+    [lp: AddressLike, stableAmount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "removeLiquidity"
   ): TypedContractMethod<[shares: BigNumberish], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "setGatewayKeeper"
+  ): TypedContractMethod<[_gatewayKeeper: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setTradeGuard"
   ): TypedContractMethod<[tradeGuard: AddressLike], [void], "nonpayable">;

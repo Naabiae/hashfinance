@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./interfaces/IKYCRegistry.sol";
 import "./interfaces/IPriceOracle.sol";
-import "./interfaces/IHSPPayment.sol";
 import "./interfaces/IRWAPool.sol";
 
 contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
@@ -21,29 +20,45 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         uint256 spreadBps;
         uint256 feeBps;
         uint256 accumulatedFees;
+        uint256 accYieldPerShare;
         bool paused;
     }
 
     PoolState public state;
     mapping(address => uint256) public lpShares;
+    mapping(address => uint256) public userYieldPerSharePaid;
+    mapping(address => uint256) public rewards;
     address[] public lpList;
     mapping(address => bool) public isLP;
     uint256 public totalShares;
     
     IKYCRegistry public kycRegistry;
     IPriceOracle public priceOracle;
-    IHSPPayment public hspPayment;
     address public feeRecipient;
     address public tradeGuard;
+    address public gatewayKeeper;
 
     uint256 public MIN_LP_LEVEL = 2;
     uint256 public MIN_SWAP_LEVEL = 1;
 
     event LiquidityAdded(address indexed lp, uint256 rwaAmount, uint256 stableAmount, uint256 shares);
+    event LiquidityAddedFromGateway(address indexed lp, uint256 stableAmount, uint256 shares);
     event LiquidityRemoved(address indexed lp, uint256 rwaAmount, uint256 stableAmount, uint256 shares);
     event Swap(address indexed user, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, int256 executionPrice);
-    event YieldDistributed(uint256 totalAmount, uint256 recipientCount);
+    event YieldClaimed(address indexed lp, uint256 amount);
     event SpreadUpdated(uint256 oldBps, uint256 newBps);
+
+    modifier updateReward(address account) {
+        if (totalShares > 0) {
+            state.accYieldPerShare += (state.accumulatedFees * 1e18) / totalShares;
+            state.accumulatedFees = 0;
+        }
+        if (account != address(0)) {
+            rewards[account] += (lpShares[account] * (state.accYieldPerShare - userYieldPerSharePaid[account])) / 1e18;
+            userYieldPerSharePaid[account] = state.accYieldPerShare;
+        }
+        _;
+    }
 
     modifier onlyVerified(uint8 minLevel) {
         require(kycRegistry.isVerified(msg.sender, minLevel), "KYC: verification required");
@@ -57,6 +72,11 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         _;
     }
 
+    modifier onlyGatewayKeeper() {
+        require(msg.sender == gatewayKeeper, "Pool: only gateway keeper");
+        _;
+    }
+
     modifier whenNotPaused() {
         require(!state.paused, "Pool: paused");
         _;
@@ -67,7 +87,6 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         address _stableToken,
         address _kycRegistry,
         address _priceOracle,
-        address _hspPayment,
         address _feeRecipient
     ) Ownable(msg.sender) {
         state.rwaToken = _rwaToken;
@@ -76,7 +95,6 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         state.feeBps = 10;    // 0.10%
         kycRegistry = IKYCRegistry(_kycRegistry);
         priceOracle = IPriceOracle(_priceOracle);
-        hspPayment = IHSPPayment(_hspPayment);
         feeRecipient = _feeRecipient;
     }
 
@@ -84,7 +102,11 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         tradeGuard = _tradeGuard;
     }
 
-    function addLiquidity(uint256 rwaAmount, uint256 stableAmount) external nonReentrant onlyVerified(uint8(MIN_LP_LEVEL)) whenNotPaused {
+    function setGatewayKeeper(address _gatewayKeeper) external onlyOwner {
+        gatewayKeeper = _gatewayKeeper;
+    }
+
+    function addLiquidity(uint256 rwaAmount, uint256 stableAmount) external nonReentrant onlyVerified(uint8(MIN_LP_LEVEL)) whenNotPaused updateReward(msg.sender) {
         IERC20(state.rwaToken).safeTransferFrom(msg.sender, address(this), rwaAmount);
         IERC20(state.stableToken).safeTransferFrom(msg.sender, address(this), stableAmount);
 
@@ -108,7 +130,7 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         emit LiquidityAdded(msg.sender, rwaAmount, stableAmount, shares);
     }
 
-    function removeLiquidity(uint256 shares) external nonReentrant onlyVerified(uint8(MIN_LP_LEVEL)) whenNotPaused {
+    function removeLiquidity(uint256 shares) external nonReentrant onlyVerified(uint8(MIN_LP_LEVEL)) whenNotPaused updateReward(msg.sender) {
         require(lpShares[msg.sender] >= shares, "Pool: insufficient shares");
 
         uint256 rwaAmount = (shares * state.rwaReserve) / totalShares;
@@ -176,47 +198,40 @@ contract RWAPool is IRWAPool, Ownable, ReentrancyGuard {
         emit Swap(recipient, state.rwaToken, state.stableToken, rwaAmountIn, stableOut, price);
     }
 
-    function distributeYield() external nonReentrant {
-        uint256 fees = state.accumulatedFees;
-        require(fees > 0, "Pool: no yield to distribute");
-        require(totalShares > 0, "Pool: no LPs");
+    function mintFromGateway(address lp, uint256 stableAmount) external nonReentrant onlyGatewayKeeper whenNotPaused updateReward(lp) {
+        IERC20(state.stableToken).safeTransferFrom(msg.sender, address(this), stableAmount);
 
-        state.accumulatedFees = 0;
+        (int256 price, ) = priceOracle.getPrice(state.rwaToken);
+        require(price > 0, "Pool: invalid oracle price");
 
-        uint256 lpCount = lpList.length;
-        address[] memory recipients = new address[](lpCount);
-        uint256[] memory amounts = new uint256[](lpCount);
+        // Minting from Gateway is single-sided liquidity in USDC
+        // This calculates how many shares they get for just USDC
+        // Without requiring an RWA deposit
+        uint256 shares = stableAmount;
 
-        uint256 actualDistributed = 0;
-        uint256 count = 0;
+        lpShares[lp] += shares;
+        totalShares += shares;
 
-        for (uint256 i = 0; i < lpCount; i++) {
-            address lp = lpList[i];
-            uint256 shares = lpShares[lp];
-            if (shares > 0) {
-                uint256 amount = (fees * shares) / totalShares;
-                if (amount > 0) {
-                    recipients[count] = lp;
-                    amounts[count] = amount;
-                    actualDistributed += amount;
-                    count++;
-                }
-            }
+        if (!isLP[lp]) {
+            isLP[lp] = true;
+            lpList.push(lp);
         }
 
-        if (actualDistributed > 0) {
-            address[] memory finalRecipients = new address[](count);
-            uint256[] memory finalAmounts = new uint256[](count);
-            for (uint256 i = 0; i < count; i++) {
-                finalRecipients[i] = recipients[i];
-                finalAmounts[i] = amounts[i];
-            }
+        state.stableReserve += stableAmount;
 
-            IERC20(state.stableToken).approve(address(hspPayment), actualDistributed);
-            hspPayment.batchStream(finalRecipients, finalAmounts);
-        }
+        emit LiquidityAddedFromGateway(lp, stableAmount, shares);
+    }
+
+    function claimYield() external nonReentrant updateReward(msg.sender) returns (uint256) {
+        uint256 pendingYield = rewards[msg.sender];
+        require(pendingYield > 0, "Pool: no pending yield");
+
+        rewards[msg.sender] = 0;
+        IERC20(state.stableToken).safeTransfer(msg.sender, pendingYield);
         
-        emit YieldDistributed(fees, count);
+        emit YieldClaimed(msg.sender, pendingYield);
+
+        return pendingYield;
     }
 
     function pause() external onlyOwner {

@@ -29,18 +29,21 @@ export interface RWAPoolInterface extends Interface {
       | "MIN_LP_LEVEL"
       | "MIN_SWAP_LEVEL"
       | "addLiquidity"
-      | "distributeYield"
+      | "claimYield"
       | "feeRecipient"
-      | "hspPayment"
+      | "gatewayKeeper"
       | "isLP"
       | "kycRegistry"
       | "lpList"
       | "lpShares"
+      | "mintFromGateway"
       | "owner"
       | "pause"
       | "priceOracle"
       | "removeLiquidity"
       | "renounceOwnership"
+      | "rewards"
+      | "setGatewayKeeper"
       | "setTradeGuard"
       | "state"
       | "swapRWAForStable"
@@ -49,16 +52,18 @@ export interface RWAPoolInterface extends Interface {
       | "tradeGuard"
       | "transferOwnership"
       | "unpause"
+      | "userYieldPerSharePaid"
   ): FunctionFragment;
 
   getEvent(
     nameOrSignatureOrTopic:
       | "LiquidityAdded"
+      | "LiquidityAddedFromGateway"
       | "LiquidityRemoved"
       | "OwnershipTransferred"
       | "SpreadUpdated"
       | "Swap"
-      | "YieldDistributed"
+      | "YieldClaimed"
   ): EventFragment;
 
   encodeFunctionData(
@@ -74,7 +79,7 @@ export interface RWAPoolInterface extends Interface {
     values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(
-    functionFragment: "distributeYield",
+    functionFragment: "claimYield",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -82,7 +87,7 @@ export interface RWAPoolInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "hspPayment",
+    functionFragment: "gatewayKeeper",
     values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "isLP", values: [AddressLike]): string;
@@ -98,6 +103,10 @@ export interface RWAPoolInterface extends Interface {
     functionFragment: "lpShares",
     values: [AddressLike]
   ): string;
+  encodeFunctionData(
+    functionFragment: "mintFromGateway",
+    values: [AddressLike, BigNumberish]
+  ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(functionFragment: "pause", values?: undefined): string;
   encodeFunctionData(
@@ -111,6 +120,14 @@ export interface RWAPoolInterface extends Interface {
   encodeFunctionData(
     functionFragment: "renounceOwnership",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "rewards",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setGatewayKeeper",
+    values: [AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "setTradeGuard",
@@ -138,6 +155,10 @@ export interface RWAPoolInterface extends Interface {
     values: [AddressLike]
   ): string;
   encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "userYieldPerSharePaid",
+    values: [AddressLike]
+  ): string;
 
   decodeFunctionResult(
     functionFragment: "MIN_LP_LEVEL",
@@ -151,15 +172,15 @@ export interface RWAPoolInterface extends Interface {
     functionFragment: "addLiquidity",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(
-    functionFragment: "distributeYield",
-    data: BytesLike
-  ): Result;
+  decodeFunctionResult(functionFragment: "claimYield", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "feeRecipient",
     data: BytesLike
   ): Result;
-  decodeFunctionResult(functionFragment: "hspPayment", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "gatewayKeeper",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "isLP", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "kycRegistry",
@@ -167,6 +188,10 @@ export interface RWAPoolInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "lpList", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "lpShares", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "mintFromGateway",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "pause", data: BytesLike): Result;
   decodeFunctionResult(
@@ -179,6 +204,11 @@ export interface RWAPoolInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "rewards", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setGatewayKeeper",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -204,6 +234,10 @@ export interface RWAPoolInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "unpause", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "userYieldPerSharePaid",
+    data: BytesLike
+  ): Result;
 }
 
 export namespace LiquidityAddedEvent {
@@ -222,6 +256,24 @@ export namespace LiquidityAddedEvent {
   export interface OutputObject {
     lp: string;
     rwaAmount: bigint;
+    stableAmount: bigint;
+    shares: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace LiquidityAddedFromGatewayEvent {
+  export type InputTuple = [
+    lp: AddressLike,
+    stableAmount: BigNumberish,
+    shares: BigNumberish
+  ];
+  export type OutputTuple = [lp: string, stableAmount: bigint, shares: bigint];
+  export interface OutputObject {
+    lp: string;
     stableAmount: bigint;
     shares: bigint;
   }
@@ -313,15 +365,12 @@ export namespace SwapEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export namespace YieldDistributedEvent {
-  export type InputTuple = [
-    totalAmount: BigNumberish,
-    recipientCount: BigNumberish
-  ];
-  export type OutputTuple = [totalAmount: bigint, recipientCount: bigint];
+export namespace YieldClaimedEvent {
+  export type InputTuple = [lp: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [lp: string, amount: bigint];
   export interface OutputObject {
-    totalAmount: bigint;
-    recipientCount: bigint;
+    lp: string;
+    amount: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -382,11 +431,11 @@ export interface RWAPool extends BaseContract {
     "nonpayable"
   >;
 
-  distributeYield: TypedContractMethod<[], [void], "nonpayable">;
+  claimYield: TypedContractMethod<[], [bigint], "nonpayable">;
 
   feeRecipient: TypedContractMethod<[], [string], "view">;
 
-  hspPayment: TypedContractMethod<[], [string], "view">;
+  gatewayKeeper: TypedContractMethod<[], [string], "view">;
 
   isLP: TypedContractMethod<[arg0: AddressLike], [boolean], "view">;
 
@@ -395,6 +444,12 @@ export interface RWAPool extends BaseContract {
   lpList: TypedContractMethod<[arg0: BigNumberish], [string], "view">;
 
   lpShares: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
+  mintFromGateway: TypedContractMethod<
+    [lp: AddressLike, stableAmount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
 
   owner: TypedContractMethod<[], [string], "view">;
 
@@ -410,6 +465,14 @@ export interface RWAPool extends BaseContract {
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
+  rewards: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
+  setGatewayKeeper: TypedContractMethod<
+    [_gatewayKeeper: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+
   setTradeGuard: TypedContractMethod<
     [_tradeGuard: AddressLike],
     [void],
@@ -419,7 +482,17 @@ export interface RWAPool extends BaseContract {
   state: TypedContractMethod<
     [],
     [
-      [string, string, bigint, bigint, bigint, bigint, bigint, boolean] & {
+      [
+        string,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        boolean
+      ] & {
         rwaToken: string;
         stableToken: string;
         rwaReserve: bigint;
@@ -427,6 +500,7 @@ export interface RWAPool extends BaseContract {
         spreadBps: bigint;
         feeBps: bigint;
         accumulatedFees: bigint;
+        accYieldPerShare: bigint;
         paused: boolean;
       }
     ],
@@ -457,6 +531,12 @@ export interface RWAPool extends BaseContract {
 
   unpause: TypedContractMethod<[], [void], "nonpayable">;
 
+  userYieldPerSharePaid: TypedContractMethod<
+    [arg0: AddressLike],
+    [bigint],
+    "view"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
@@ -475,13 +555,13 @@ export interface RWAPool extends BaseContract {
     "nonpayable"
   >;
   getFunction(
-    nameOrSignature: "distributeYield"
-  ): TypedContractMethod<[], [void], "nonpayable">;
+    nameOrSignature: "claimYield"
+  ): TypedContractMethod<[], [bigint], "nonpayable">;
   getFunction(
     nameOrSignature: "feeRecipient"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "hspPayment"
+    nameOrSignature: "gatewayKeeper"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "isLP"
@@ -495,6 +575,13 @@ export interface RWAPool extends BaseContract {
   getFunction(
     nameOrSignature: "lpShares"
   ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "mintFromGateway"
+  ): TypedContractMethod<
+    [lp: AddressLike, stableAmount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
@@ -511,6 +598,12 @@ export interface RWAPool extends BaseContract {
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "rewards"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "setGatewayKeeper"
+  ): TypedContractMethod<[_gatewayKeeper: AddressLike], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "setTradeGuard"
   ): TypedContractMethod<[_tradeGuard: AddressLike], [void], "nonpayable">;
   getFunction(
@@ -518,7 +611,17 @@ export interface RWAPool extends BaseContract {
   ): TypedContractMethod<
     [],
     [
-      [string, string, bigint, bigint, bigint, bigint, bigint, boolean] & {
+      [
+        string,
+        string,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        bigint,
+        boolean
+      ] & {
         rwaToken: string;
         stableToken: string;
         rwaReserve: bigint;
@@ -526,6 +629,7 @@ export interface RWAPool extends BaseContract {
         spreadBps: bigint;
         feeBps: bigint;
         accumulatedFees: bigint;
+        accYieldPerShare: bigint;
         paused: boolean;
       }
     ],
@@ -557,6 +661,9 @@ export interface RWAPool extends BaseContract {
   getFunction(
     nameOrSignature: "unpause"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "userYieldPerSharePaid"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
 
   getEvent(
     key: "LiquidityAdded"
@@ -564,6 +671,13 @@ export interface RWAPool extends BaseContract {
     LiquidityAddedEvent.InputTuple,
     LiquidityAddedEvent.OutputTuple,
     LiquidityAddedEvent.OutputObject
+  >;
+  getEvent(
+    key: "LiquidityAddedFromGateway"
+  ): TypedContractEvent<
+    LiquidityAddedFromGatewayEvent.InputTuple,
+    LiquidityAddedFromGatewayEvent.OutputTuple,
+    LiquidityAddedFromGatewayEvent.OutputObject
   >;
   getEvent(
     key: "LiquidityRemoved"
@@ -594,11 +708,11 @@ export interface RWAPool extends BaseContract {
     SwapEvent.OutputObject
   >;
   getEvent(
-    key: "YieldDistributed"
+    key: "YieldClaimed"
   ): TypedContractEvent<
-    YieldDistributedEvent.InputTuple,
-    YieldDistributedEvent.OutputTuple,
-    YieldDistributedEvent.OutputObject
+    YieldClaimedEvent.InputTuple,
+    YieldClaimedEvent.OutputTuple,
+    YieldClaimedEvent.OutputObject
   >;
 
   filters: {
@@ -611,6 +725,17 @@ export interface RWAPool extends BaseContract {
       LiquidityAddedEvent.InputTuple,
       LiquidityAddedEvent.OutputTuple,
       LiquidityAddedEvent.OutputObject
+    >;
+
+    "LiquidityAddedFromGateway(address,uint256,uint256)": TypedContractEvent<
+      LiquidityAddedFromGatewayEvent.InputTuple,
+      LiquidityAddedFromGatewayEvent.OutputTuple,
+      LiquidityAddedFromGatewayEvent.OutputObject
+    >;
+    LiquidityAddedFromGateway: TypedContractEvent<
+      LiquidityAddedFromGatewayEvent.InputTuple,
+      LiquidityAddedFromGatewayEvent.OutputTuple,
+      LiquidityAddedFromGatewayEvent.OutputObject
     >;
 
     "LiquidityRemoved(address,uint256,uint256,uint256)": TypedContractEvent<
@@ -657,15 +782,15 @@ export interface RWAPool extends BaseContract {
       SwapEvent.OutputObject
     >;
 
-    "YieldDistributed(uint256,uint256)": TypedContractEvent<
-      YieldDistributedEvent.InputTuple,
-      YieldDistributedEvent.OutputTuple,
-      YieldDistributedEvent.OutputObject
+    "YieldClaimed(address,uint256)": TypedContractEvent<
+      YieldClaimedEvent.InputTuple,
+      YieldClaimedEvent.OutputTuple,
+      YieldClaimedEvent.OutputObject
     >;
-    YieldDistributed: TypedContractEvent<
-      YieldDistributedEvent.InputTuple,
-      YieldDistributedEvent.OutputTuple,
-      YieldDistributedEvent.OutputObject
+    YieldClaimed: TypedContractEvent<
+      YieldClaimedEvent.InputTuple,
+      YieldClaimedEvent.OutputTuple,
+      YieldClaimedEvent.OutputObject
     >;
   };
 }

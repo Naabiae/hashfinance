@@ -527,7 +527,7 @@
       ]
     },
     "/workspace/contracts/TradeGuard.sol": {
-      "lastModificationDate": 1775670792110,
+      "lastModificationDate": 1775677307334,
       "contentHash": "e6dd8a1e1aa5277af88b38635fb43d94",
       "sourceName": "contracts/TradeGuard.sol",
       "solcConfig": {
@@ -569,8 +569,8 @@
       ]
     },
     "/workspace/contracts/interfaces/IRWAPool.sol": {
-      "lastModificationDate": 1775670747080,
-      "contentHash": "9af6d296e5ae086e7231f66cd85bfa0b",
+      "lastModificationDate": 1775678229039,
+      "contentHash": "3a884aa459499a732d8c1194a3998342",
       "sourceName": "contracts/interfaces/IRWAPool.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -605,8 +605,8 @@
       ]
     },
     "/workspace/contracts/RWAPool.sol": {
-      "lastModificationDate": 1775670762200,
-      "contentHash": "a12d1fb529e9a8dd8eafbce84827cd1d",
+      "lastModificationDate": 1775678323159,
+      "contentHash": "43273fde7e790367b00e137013931ea1",
       "sourceName": "contracts/RWAPool.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -639,7 +639,6 @@
         "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
         "./interfaces/IKYCRegistry.sol",
         "./interfaces/IPriceOracle.sol",
-        "./interfaces/IHSPPayment.sol",
         "./interfaces/IRWAPool.sol"
       ],
       "versionPragmas": [
@@ -683,42 +682,6 @@
       ],
       "artifacts": [
         "IPriceOracle"
-      ]
-    },
-    "/workspace/contracts/interfaces/IHSPPayment.sol": {
-      "lastModificationDate": 1775670746860,
-      "contentHash": "741c25fc7af8d5a9504fda5191f16085",
-      "sourceName": "contracts/interfaces/IHSPPayment.sol",
-      "solcConfig": {
-        "version": "0.8.20",
-        "settings": {
-          "optimizer": {
-            "enabled": true,
-            "runs": 200
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "^0.8.20"
-      ],
-      "artifacts": [
-        "IHSPPayment"
       ]
     },
     "/workspace/node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol": {
