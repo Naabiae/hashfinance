@@ -14,7 +14,7 @@ A compliant RWA (Real World Asset) liquidity pool on HashKey Chain. Institutiona
 - Hold KYC-gated RWA tokens (tokenized bonds, treasuries, receivables)
 - Provide liquidity to an oracle-anchored pool (no x·y=k AMM — price comes from APRO oracle)
 - Swap USDC ↔ RWA tokens at verified NAV price plus spread
-- Receive yield distributions via HashKey HSP payment protocol with on-chain receipts
+- Receive yield distributions natively and execute Auto-Invest (DCA) via HashKey PayFi Gateway
 - Execute large trades through a TradeGuard commit-reveal mechanism for institutional safety
 
 ---
@@ -25,7 +25,7 @@ A compliant RWA (Real World Asset) liquidity pool on HashKey Chain. Institutiona
 |---|---|
 | Oracle-anchored pool, not x·y=k | RWA NAVs are off-chain; constant-product math creates arb at every NAV update |
 | HashKey KYC SBT as compliance source | Native chain infrastructure; judges want to see it used, not reimplemented |
-| HSP for yield distribution | PayFi track bonus points; creates auditable on-chain payment receipts |
+| HashKey PayFi Gateway | PayFi track bonus points; creates compliant Web2.5 fiat/crypto onboarding (Checkout & Auto-Invest DCA) |
 | TradeGuard commit-reveal | Mirrors HashKey CEO's "fat finger" rollback concept; no other submission will have it |
 | ERC-20 `_update` hook for transfer compliance | Token-level enforcement as well as pool-level; Policy-as-Code pattern |
 
@@ -37,7 +37,7 @@ A compliant RWA (Real World Asset) liquidity pool on HashKey Chain. Institutiona
 |---|---|
 | `01_smart_contracts.md` | All 5 Solidity contracts: KYCRegistry, RWAToken, PriceOracle, RWAPool, TradeGuard |
 | `02_backend.md` | Oracle keeper, event indexer, REST API, KYC redirect service |
-| `03_hsp_payments.md` | HSPAdapter contract, single payment flow, batch payment flow, receipt tracking |
+| `03_hsp_payments.md` | PayFi Gateway integration, Institutional Checkout, Auto-Invest (DCA) and webhook verification |
 | `04_frontend.md` | Next.js app: Dashboard, Swap, Liquidity, History pages + all components |
 
 ---
@@ -51,9 +51,8 @@ A compliant RWA (Real World Asset) liquidity pool on HashKey Chain. Institutiona
 3. PriceOracle — integrate APRO feed
 4. RWAPool — core pool logic
 5. TradeGuard — commit-reveal
-6. HSPAdapter — payment wrapper
-7. Write and run all contract tests locally
-8. Deploy full contract suite to HashKey testnet
+6. Write and run all contract tests locally
+7. Deploy full contract suite to HashKey testnet
 
 ### Day 3–4 — Backend
 
@@ -62,22 +61,23 @@ A compliant RWA (Real World Asset) liquidity pool on HashKey Chain. Institutiona
 3. Event indexer — needs live contracts to index
 4. REST API routes
 5. KYC redirect service
-6. Run backend integration tests against testnet
+6. PayFi Gateway integration (Checkout + Webhooks)
+7. Run backend integration tests against testnet
 
-### Day 5–6 — Frontend + HSP integration
+### Day 5–6 — Frontend + PayFi integration
 
 1. Configure wagmi with HashKey Chain
 2. Pool Dashboard page — uses API, no writes
 3. KYC check on wallet connect
 4. Swap page — both direct and TradeGuard flows
-5. Liquidity page — add/remove + claim yield
-6. HSP single and batch payment integration
+5. Liquidity page — direct deposit + HashKey PayFi checkout
+6. Auto-Invest (DCA) subscription UI
 7. History page
 
 ### Day 7 — Integration and end-to-end
 
 1. Connect all layers: frontend → backend → contracts → HashKey chain
-2. Run full user journey: KYC → add liquidity → swap → yield distribution → view receipts
+2. Run full user journey: KYC → direct deposit / PayFi checkout → swap → Auto-Invest
 3. Fix any integration bugs
 4. Performance check: ensure API responses < 500ms, RPC calls < 3s
 
@@ -86,7 +86,8 @@ A compliant RWA (Real World Asset) liquidity pool on HashKey Chain. Institutiona
 1. Record 3-minute demo video showing:
    - KYC gate in action
    - Swap execution (small direct, large via TradeGuard)
-   - Yield distribution via HSP
+   - Institutional Checkout via HashKey Gateway
+   - Auto-Invest subscription (reusable mandate)
    - Circuit breaker demo (if possible)
 2. Write submission description on DoraHacks
 3. Deploy frontend to Vercel
@@ -98,11 +99,11 @@ A compliant RWA (Real World Asset) liquidity pool on HashKey Chain. Institutiona
 
 | Module | Tests |
 |---|---|
-| Smart contracts | 40 (across 5 contracts) |
-| Backend | 21 (across 4 services) |
-| HSP payments | 17 (single + batch + backend) |
-| Frontend | 12 |
-| **Total** | **90 tests** |
+| Smart contracts | 35 (across 4 contracts) |
+| Backend | 24 (across 5 services) |
+| PayFi Gateway | 10 (Checkout + DCA + Webhook) |
+| Frontend | 15 |
+| **Total** | **84 tests** |
 
 ---
 
@@ -118,7 +119,7 @@ A compliant RWA (Real World Asset) liquidity pool on HashKey Chain. Institutiona
 | APRO USDC/USD | `0xCdB10dC9dB30B6ef2a63aB4460263655808fAE27` | `0x244Ce344df8837c9d938867E2Ffbf0E4B0169B56` |
 | SUPRA pull | `0x443A0f4Da5d2fdC47de3eeD45Af41d399F0E5702` | `0x16f70cAD28dd621b0072B5A8a8c392970E87C3dD` |
 | Chainlink verifier | `0xE02A72Be64DA496797821f1c4BB500851C286C6c` | `0x3278e7a582B94d82487d4B99b31A511CbAe2Cd54` |
-| HSP contract | Get from `https://hashfans.io/` docs | Get from `https://hashfans.io/` docs |
+| PayFi Gateway | `https://merchant-qa.hashkeymerchant.com` | `https://merchant.hashkey.com` |
 | Faucet | `https://docs.hashkeychain.net/docs/Build-on-HashKey-Chain/Tools/Faucet` | N/A |
 
 ---
@@ -130,7 +131,7 @@ A compliant RWA (Real World Asset) liquidity pool on HashKey Chain. Institutiona
 | HashKey | Chain docs | `https://docs.hashkeychain.net` |
 | HashKey | KYC SBT integration | `https://docs.hashkeychain.net/docs/Build-on-HashKey-Chain/Tools/KYC` |
 | HashKey | Oracle docs | `https://docs.hashkeychain.net/docs/Build-on-HashKey-Chain/Tools/Oracle` |
-| HashKey | HSP docs | `https://hashfans.io/` (login required) |
+| HashKey | PayFi Gateway docs | PDF reference |
 | HashKey | Developer community | `https://hashfans.io/` |
 | HashKey | Telegram group | `https://t.me/HashKeyChainHSK/95285` |
 | HashKey | Blockscout explorer | `https://hashkey.blockscout.com` |

@@ -14,8 +14,8 @@ A single-page dApp with four views:
 
 1. **Pool Dashboard** — live pool state, oracle price, reserves, accumulated fees, chart of price history
 2. **Swap** — swap USDC ↔ RWA token with real-time price preview, KYC gate, TradeGuard commitment flow for large swaps
-3. **Liquidity** — add/remove LP positions, see your share value, pending yield, claim or await batch distribution
-4. **History** — your personal swap and payment history with HSP receipt IDs
+3. **Liquidity** — direct deposit, checkout via HashKey Gateway, pending yield
+4. **History** — your personal swap and PayFi history with HashKey flow IDs
 
 ### Why this stack
 
@@ -214,10 +214,12 @@ When swap amount > 10,000 USDC, a two-step UI appears:
 
 - User's current LP position: share count, USD value, percentage of pool
 - Pending yield: how much USDC is owed since last distribution
-- "Add Liquidity" form: input RWA and USDC amounts, preview shares to receive
+- "Direct Deposit" form: input RWA and USDC amounts (requires wallet)
+- "Checkout with HashKey": fiat/crypto onramp via Merchant API (Web2.5 UX)
+- "Auto-Invest (DCA)": subscribe to weekly USDC deposits via reusable mandates
 - "Remove Liquidity" slider: choose what % of position to remove
-- "Claim Yield" button: triggers single HSP payment to user
-- Distribution history: past yield payments with receipt IDs
+- "Claim Yield" button: triggers single claim to user
+- Deposit history: past investments with HashKey `payment_request_id`s
 
 ### Components to build
 
@@ -228,10 +230,18 @@ When swap amount > 10,000 USDC, a two-step UI appears:
 - Pending yield updates every 30 seconds
 
 **`components/AddLiquidityForm.tsx`**
-- Two inputs: RWA amount and USDC amount
-- Preview: shares to receive (computed from oracle price)
-- Requires ADVANCED KYC (level 2) — shows KYCGate if insufficient
+- Standard DeFi flow: Two inputs (RWA and USDC)
+- Requires ADVANCED KYC (level 2)
 - Submit calls `pool.addLiquidity(rwaAmount, stableAmount)` via wagmi
+
+**`components/HashKeyCheckout.tsx`**
+- PayFi flow: "Invest USDC"
+- Calls `POST /api/payfi/checkout` to get `payment_url`
+- Redirects user to HashKey Gateway
+
+**`components/AutoInvestSetup.tsx`**
+- Subscribes user to a recurring deposit (e.g. 1000 USDC / week)
+- Calls `POST /api/payfi/reusable` to get `payment_url` for a mandate
 
 **`components/RemoveLiquiditySlider.tsx`**
 - Percentage slider: 0–100%
@@ -241,25 +251,20 @@ When swap amount > 10,000 USDC, a two-step UI appears:
 **`components/ClaimYield.tsx`**
 - Shows pending yield amount
 - "Claim" button calls `pool.claimYield()` via wagmi
-- On success: shows HSP receipt ID with Blockscout link
-- Disabled if pending yield is 0
 
-**`components/PaymentHistory.tsx`**
-- Table: Date | Type | Amount | Receipt ID
-- Data from `/api/payments/lp?address=...`
-- Receipt IDs link to Blockscout
+**`components/PayFiHistory.tsx`**
+- Table: Date | Type (Checkout/Auto-Invest) | Amount | Status | HashKey ID
+- Data from `/api/payfi/history?address=...`
 
 ### Tests to write
 
 | Test | What to assert | Pass condition |
 |---|---|---|
 | `lp_position_shows_shares` | Mock position data, render | Share count and USD value displayed |
-| `add_liquidity_preview` | Enter amounts | Shares preview computed from oracle price |
 | `add_liquidity_kyc_gate` | Mock level 1 (below required 2) | KYCGate shown, submit disabled |
-| `remove_slider_preview` | Move slider to 50% | Shows 50% of position in preview |
+| `hashkey_checkout_redirect` | Click Checkout button | window.location matches HashKey portal URL |
+| `auto_invest_subscribe` | Submit DCA | API is called with correct mandate details |
 | `claim_yield_button` | Pending yield > 0 | Button enabled, calls claimYield on click |
-| `claim_yield_disabled` | Pending yield == 0 | Button disabled |
-| `receipt_id_shown` | Successful claim | Receipt ID appears in payment history |
 
 ---
 
@@ -267,14 +272,14 @@ When swap amount > 10,000 USDC, a two-step UI appears:
 
 ### What it shows
 
-- Tabs: Swaps | Liquidity Events | Payments
+- Tabs: Swaps | Liquidity Events | PayFi
 - Each tab shows a paginated table of the user's transactions
-- All transactions link to Blockscout
+- All transactions link to Blockscout (except PayFi HashKey IDs)
 
 ### Components to build
 
 **`components/HistoryTabs.tsx`**
-- Tab switcher: Swaps / Liquidity / Payments
+- Tab switcher: Swaps / Liquidity / PayFi
 - Each tab fetches from corresponding API endpoint
 - Pagination: 20 items per page
 
@@ -284,9 +289,9 @@ When swap amount > 10,000 USDC, a two-step UI appears:
 **`components/LiquidityHistoryTable.tsx`**
 - Columns: Date | Type (Add/Remove) | RWA Amount | USDC Amount | Shares | Tx Hash
 
-**`components/PaymentHistoryTable.tsx`**
-- Columns: Date | Type | Amount | Receipt ID | Tx Hash
-- Receipt ID links to HSP receipt query
+**`components/PayFiHistoryTable.tsx`**
+- Columns: Date | Flow | Amount | Status | HashKey Mandate ID
+- Shows both successful deposits and pending Auto-Invest triggers
 
 ---
 
@@ -381,8 +386,8 @@ Run with Vitest + React Testing Library.
 | `lp_add_form_preview` | Enter RWA + USDC amounts | Share preview updates |
 | `claim_button_enabled` | Mock 500 USDC pending | Claim button not disabled |
 | `claim_button_disabled` | Mock 0 pending | Claim button disabled |
-| `history_tab_switch` | Click "Payments" tab | PaymentHistoryTable renders |
-| `payment_receipt_link` | Receipt ID in row | Link points to Blockscout |
+| `history_tab_switch` | Click "PayFi" tab | PayFiHistoryTable renders |
+| `payfi_mandate_id_shown` | Mandate ID in row | HashKey specific ID renders |
 
 ### Test validation checklist
 
@@ -418,9 +423,11 @@ frontend/
 │   ├── TradeGuardFlow.tsx
 │   ├── LPPosition.tsx
 │   ├── AddLiquidityForm.tsx
+│   ├── HashKeyCheckout.tsx
+│   ├── AutoInvestSetup.tsx
 │   ├── RemoveLiquiditySlider.tsx
 │   ├── ClaimYield.tsx
-│   ├── PaymentHistory.tsx
+│   ├── PayFiHistory.tsx
 │   └── HistoryTabs.tsx
 ├── hooks/
 │   ├── useKYCStatus.ts

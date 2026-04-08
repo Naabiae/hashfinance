@@ -382,9 +382,9 @@ mapping(address => uint256) public lpShares;       // LP address → share units
 uint256 public totalShares;
 IKYCRegistry   public kycRegistry;
 IPriceOracle   public priceOracle;
-IHSPPayment    public hspPayment;                  // HashKey HSP payment contract
 address        public feeRecipient;
 address        public owner;
+address        public gatewayKeeper;               // backend wallet that mints shares from Gateway
 
 uint256 public MIN_LP_LEVEL = 2;    // ADVANCED KYC for LPs
 uint256 public MIN_SWAP_LEVEL = 1;  // BASIC KYC for swappers
@@ -419,12 +419,20 @@ uint256 public MIN_SWAP_LEVEL = 1;  // BASIC KYC for swappers
 - `stableOut = rwaAmountIn * price / 1e8`
 - Apply spread and fee symmetrically
 
-`distributeYield()`
-- Callable by anyone (permissionless)
-- Takes `accumulatedFees` and streams to LPs proportional to shares via HSP
-- Calls `hspPayment.batchStream(recipients, amounts)` — see Module 3 for HSP details
-- Reset `accumulatedFees = 0`
-- Emit `YieldDistributed(totalAmount, recipientCount)`
+`mintFromGateway(address lp, uint256 stableAmount)`
+- Modifier: `onlyGatewayKeeper`
+- Used when users deposit fiat/USDC via HashKey Merchant API.
+- Pulls `stableAmount` USDC from keeper (or gateway contract) to pool.
+- Computes shares based on current oracle price (no RWA deposit needed for single-sided entry).
+- Mints LP shares.
+- Emit `LiquidityAddedFromGateway(lp, stableAmount, shares)`
+
+`claimYield()`
+- LP claims their portion of accumulated fees.
+- `pendingYield = accumulatedFees * lpShares[msg.sender] / totalShares`
+- Requires `pendingYield > 0`
+- Resets or updates state, transfers USDC to `msg.sender`.
+- Emit `YieldClaimed(msg.sender, pendingYield)`
 
 `pause() / unpause()` — only owner, emergency stop
 
@@ -432,9 +440,10 @@ uint256 public MIN_SWAP_LEVEL = 1;  // BASIC KYC for swappers
 
 ```
 event LiquidityAdded(address indexed lp, uint256 rwaAmount, uint256 stableAmount, uint256 shares);
+event LiquidityAddedFromGateway(address indexed lp, uint256 stableAmount, uint256 shares);
 event LiquidityRemoved(address indexed lp, uint256 rwaAmount, uint256 stableAmount, uint256 shares);
 event Swap(address indexed user, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, int256 executionPrice);
-event YieldDistributed(uint256 totalAmount, uint256 recipientCount);
+event YieldClaimed(address indexed lp, uint256 amount);
 event SpreadUpdated(uint256 oldBps, uint256 newBps);
 ```
 
@@ -443,13 +452,14 @@ event SpreadUpdated(uint256 oldBps, uint256 newBps);
 | Test | What to assert | Pass condition |
 |---|---|---|
 | `test_addLiquidity_verified` | ADVANCED KYC LP adds liquidity | Shares minted correctly |
+| `test_mintFromGateway` | Keeper calls mintFromGateway | Shares minted to LP |
 | `test_addLiquidity_basic_rejected` | BASIC KYC user tries to LP | Reverts |
 | `test_swap_basic_kyc` | BASIC KYC user swaps USDC → RWA | Succeeds, correct amount out |
 | `test_swap_unverified` | No KYC user swaps | Reverts |
 | `test_swap_staleOracle` | Advance time > 24h, attempt swap | Reverts from oracle |
 | `test_slippage_protection` | Set minOut > expected out | Reverts "slippage exceeded" |
 | `test_spread_applied` | Swap, check fee deducted | accumulatedFees > 0 |
-| `test_distributeYield` | Trigger yield distribution | HSP called, fees reset to 0 |
+| `test_claimYield` | LP claims yield | USDC transferred |
 | `test_removeLiquidity` | LP removes shares | Correct token amounts returned |
 | `test_pause_blocks_swaps` | Pause pool, attempt swap | Reverts |
 
@@ -575,7 +585,7 @@ Deploy in this exact sequence — each contract depends on the previous:
 1. KYCRegistry (pass HashKey SBT address)
 2. RWAToken (pass KYCRegistry address)
 3. PriceOracle (no deps — set feeds after)
-4. RWAPool (pass KYCRegistry, PriceOracle, and HSP addresses)
+4. RWAPool (pass KYCRegistry and PriceOracle addresses)
 5. TradeGuard (pass RWAPool address)
 6. Call `pool.setTradeGuard(tradeGuardAddress)`
 7. Register APRO feeds in PriceOracle

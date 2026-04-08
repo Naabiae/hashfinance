@@ -10,12 +10,13 @@
 
 ### What we are building
 
-The backend has four responsibilities:
+The backend has five responsibilities:
 
 1. **Oracle Keeper** — watches off-chain RWA NAV sources, formats prices, and calls `PriceOracle.pushRWAPrice()` on-chain
 2. **Event Indexer** — listens to contract events (swaps, liquidity changes, yield distribution) and stores them for the frontend dashboard
 3. **REST API** — serves pool state, price history, LP positions, and transaction history to the frontend
 4. **KYC Redirect Service** — checks a wallet's KYC status via the SBT and redirects unverified users to HashKey's KYC portal
+5. **PayFi Gateway Integration** — integrates HashKey Merchant API for fiat/USDC checkout and Auto-Invest DCA, acting as a bridge between off-chain payments and on-chain liquidity.
 
 ### Why we need a backend
 
@@ -412,6 +413,62 @@ Response if not verified:
 
 - HashKey KYC portal (testnet): `https://kyc-testnet.hunyuankyc.com`
 - HashKey KYC SBT interface: `https://docs.hashkeychain.net/docs/Build-on-HashKey-Chain/Tools/KYC`
+
+---
+
+## Service 5 — PayFi Gateway Integration
+
+### What it does
+
+Integrates HashKey Merchant API to offer fiat/crypto on-ramping into the RWA Pool. Provides a checkout endpoint for one-time orders (Institutional Checkout), an endpoint for reusable orders (Auto-Invest/DCA), a webhook receiver to verify payments, and a cron job to automatically trigger reusable mandates.
+
+### Why we need it
+
+Standard DeFi protocols require users to acquire USDC, connect a wallet, send an `approve` transaction, and then a `deposit` transaction. By acting as a Merchant, the backend can provide a Web2.5 "Pay with HashKey" button. Furthermore, blockchains cannot pull funds automatically, so a backend cron job and reusable payment mandate are required for DCA features.
+
+### Modules to implement
+
+**`src/payfi/merchantClient.ts`**
+- `createOrder(amount, userAddress)` — Builds `cart_mandate` for one-time checkout, generates canonical JSON hash, signs ES256K JWT, attaches HMAC headers, and calls `POST /api/v1/merchant/orders`. Returns `payment_url`.
+- `createReusableOrder(amount, userAddress)` — Same as above but calls `POST /api/v1/merchant/orders/reusable` and sets `multi_pay: true`. Returns `payment_url`.
+- `triggerReusablePayment(mandateId, amount)` — Charges a previously authorized reusable mandate.
+
+**`src/payfi/webhookHandler.ts`**
+- `verifyHMAC(req)` — Validates the `X-Signature` header from HashKey using `app_secret`. Ensures timestamp tolerance is within 300 seconds.
+- `handlePaymentSuccess(paymentData)` — Once verified, loads the backend KEEPER_PRIVATE_KEY and submits a transaction to `RWAPool.mintFromGateway(userAddress, amount)`.
+
+**`src/payfi/autoInvestCron.ts`**
+- A weekly cron job (`cron.schedule('0 0 * * 0', runAutoInvest)`) that iterates through active reusable mandates in the database and calls `triggerReusablePayment()`.
+
+### Database schema additions (SQLite)
+
+```sql
+TABLE payfi_mandates (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  mandate_id   TEXT UNIQUE NOT NULL,
+  user_address TEXT NOT NULL,
+  amount       TEXT NOT NULL,
+  active       BOOLEAN DEFAULT 1,
+  created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+```
+
+### Environment variables needed
+
+```
+HASHKEY_APP_KEY=ak_xxx
+HASHKEY_APP_SECRET=sk_xxx
+MERCHANT_PRIVATE_KEY_PATH=./keys/merchant_private_key.pem
+GATEWAY_KEEPER_PRIVATE_KEY=0x...
+```
+
+### Tests to write
+
+| Test | What to assert | Pass condition |
+|---|---|---|
+| `payfi_jwt_generation` | Create ES256K JWT | Decodes with correct claims and algorithm |
+| `payfi_hmac_verification` | Validate mock webhook request | Verification passes |
+| `payfi_mint_on_webhook` | Mock successful webhook | `mintFromGateway` called on contract |
 
 ---
 
